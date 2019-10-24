@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Ecommerce example PWA 📱</title>
+    <title>Offline requests 📴</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1" />
     <meta name="theme-color" content="#3367d6" />
     
@@ -11,6 +11,7 @@
     <link rel="manifest" href="/manifest.json" />
 
     <link href="./css/main.css" rel="stylesheet" type="text/css" />
+    <link href="./css/offline-theme-dark.css" rel="stylesheet" type="text/css" />
     <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
 
   </head>
@@ -19,7 +20,8 @@
     
     <div class="container">
       <paper-toolbar>
-        <div slot="top" class="title">Ecommerce example PWA 📱</div>
+        <div slot="top" class="title">Offline requests example 📴</div>
+        <!-- TODO add notification icon buttons -->
         <div slot="top" style="max-width: 40px;max-height: 40px">
             <paper-icon-button id="notifications-request-button" src="/img/notifications-none.svg"></paper-icon-button>
         </div>
@@ -31,7 +33,7 @@
         <div slot="top">
           <a 
             id="fork-me-banner" 
-            href="https://github.com/charisTheo/ecommerce-example-pwa" 
+            href="https://github.com/charisTheo/offline-requests" 
             aria-label="View source on GitHub" 
             rel="noreferrer"
           >
@@ -101,6 +103,8 @@
 
     <div id="snackbar"></div>
     
+    <script defer src="./src/js/offline.min.js"></script>
+    <script defer src="./src/js/snake.js"></script>
     <!-- <script>
       (function() {
         document.addEventListener('WebComponentsReady', function componentsReady() {

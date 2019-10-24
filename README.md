@@ -1,4 +1,4 @@
-# Ecommerce PWA Template 📱
+# Offline requests example 📴
 
 ## Getting started
 

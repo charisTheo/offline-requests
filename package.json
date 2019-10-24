@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.html",
-  "homepage": "https://charistheo.github.io/ecommerce-example-pwa",
+  "homepage": "https://charistheo.github.io/offline-requests",
   "scripts": {
     "start": "webpack-dev-server --open",
     "build": "webpack",
