@@ -12,10 +12,13 @@ import '@polymer/paper-item/paper-item-body';
 import '@polymer/paper-item/paper-icon-item';
 import '@polymer/paper-toggle-button/paper-toggle-button';
 
+import "./offline.min.js";
+import "./snake.js";
+
 const VAPID_PUBLIC_KEY = 'BCvnBFnsPt6MPzwX_LOgKqVFG5ToFJ5Yl0qDfwrT-_lqG0PqgwhFijMq_E-vgkkLli7RWHZCYxANy_l0oxz0Nzs';
 const API_URL = 'https://ecommerce-pwa.herokuapp.com';
-const NOTIFICATIONS_ACTIVE_URL = '/img/notifications-active.svg';
-const NOTIFICATIONS_NONE_URL = '/img/notifications-none.svg';
+const NOTIFICATIONS_ACTIVE_URL = './img/notifications-active.svg';
+const NOTIFICATIONS_NONE_URL = './img/notifications-none.svg';
 const snackBar = document.getElementById('snackbar');
 const notificationsRequestButton = document.getElementById('notifications-request-button');
 const shoppingCartButton = document.getElementById('shopping-cart-button');
