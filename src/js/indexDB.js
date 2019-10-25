@@ -76,7 +76,7 @@ const configureLocalDatabase = () => {
     }) 
 }
 
-module.exports = {
+export {
     db,
     addItemToObjectStore,
     removeItemFromObjectStore,

@@ -1,5 +1,7 @@
 // https://developers.google.com/web/tools/workbox/guides/configure-workbox
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
+const API_URL = 'https://ecommerce-pwa.herokuapp.com';
+var db;
 
 if (workbox) {
   console.log(`Yay! Workbox is loaded 🎉`);
@@ -22,6 +24,57 @@ workbox.routing.registerRoute(
   new workbox.strategies.NetworkFirst(), 
   'GET'
 );
+
+self.addEventListener('sync', async event => {
+  if (event.tag === 'sync-cart-items') {
+    await configureLocalDatabase();
+    // * sync items between IndexDB and the API
+    syncToAddShoppingCartItems();
+    event.waitUntil(syncToRemoveShoppingCartItems());
+  }
+});
+
+const syncToAddShoppingCartItems = async () => {
+  const items = await getAllItemsInObjectStore('toAdd');
+
+  const response = await fetch(`${API_URL}/cart`, { 
+    method: 'POST', 
+    body: JSON.stringify({items}),
+    headers: {'Content-Type': 'application/json'}
+  });
+  
+  if (response.status === 200) {
+    const totalCartItems = await response.json();
+    console.log("syncToAddShoppingCartItems: totalCartItems", totalCartItems);
+    // ! remove items from indexdb
+    items.map(item => removeItemFromObjectStore('toAdd', item));
+    
+  } else {
+    console.warn(`Request [POST] to [/cart] returned status [${response.status}]`);
+
+  }
+}
+
+const syncToRemoveShoppingCartItems = async () => {
+  const items = await getAllItemsInObjectStore('toRemove');
+
+  const response = await fetch(`${API_URL}/cart`, { 
+    method: 'DELETE', 
+    body: JSON.stringify({items}),
+    headers: {'Content-Type': 'application/json'}
+  });
+  
+  if (response.status === 200) {
+    const totalCartItems = await response.json();
+    console.log("syncToRemoveShoppingCartItems: totalCartItems", totalCartItems);
+    // ! remove items from indexdb
+    items.map(item => removeItemFromObjectStore('toRemove', item));
+    
+  } else {
+    console.warn(`Request [DELETE] to [/cart] returned status [${response.status}]`);
+
+  }
+}
 
 self.addEventListener('push', function(event) {
   let options = {};
@@ -72,3 +125,65 @@ self.addEventListener('notificationclick', function(event) {
     break;
   }
 });
+
+/* //* IndexDB helper functions */
+const configureLocalDatabase = () => {
+  let DBOpenRequest = indexedDB.open("shoppingCart", 1);
+
+  DBOpenRequest.onerror = function(event) {
+      showSnackBar('Error loading database.');
+  };
+
+  DBOpenRequest.onupgradeneeded = function(event) {
+      let db = event.target.result;
+      db.onerror = function(event) {
+          console.warn("DBOpenRequest.onupgradeneeded: db.onerror -> event", event);
+          showSnackBar('Error loading database.');          
+      };
+  
+      let toAddObjectStore = db.createObjectStore("toAdd", { keyPath: "name" });
+      toAddObjectStore.createIndex("name", "name", { unique: false });
+      toAddObjectStore.createIndex("price", "price", { unique: false });
+      toAddObjectStore.createIndex("image", "image", { unique: false });
+      
+      let toRemoveObjectStore = db.createObjectStore("toRemove", { keyPath: "name" });
+      toRemoveObjectStore.createIndex("name", "name", { unique: false });
+      toRemoveObjectStore.createIndex("price", "price", { unique: false });
+      toRemoveObjectStore.createIndex("image", "image", { unique: false });
+  };
+
+  return new Promise((resolve, reject) => {
+      DBOpenRequest.onsuccess = function(event) {
+          db = DBOpenRequest.result;
+          return resolve(db);
+      };
+  }) 
+}
+
+const getAllItemsInObjectStore = objectStoreName => {
+  const transaction = db.transaction([objectStoreName], "readwrite");
+  const objectStore = transaction.objectStore(objectStoreName);
+  const getAllItemsRequest = objectStore.getAll();
+
+  return new Promise((resolve, reject) => {
+      getAllItemsRequest.onsuccess = () => {
+          const items = getAllItemsRequest.result;
+          resolve(items);
+      };
+  });
+}
+
+const removeItemFromObjectStore = (objectStoreName, item) => {
+  const transaction = db.transaction([objectStoreName], "readwrite");
+  const objectStore = transaction.objectStore(objectStoreName);
+  const objectStoreRequest = objectStore.delete(item.name);
+
+  return new Promise((resolve, reject) => {
+      objectStoreRequest.onsuccess = () => {
+          resolve(item);
+      }
+      objectStoreRequest.onerror = error => {
+          reject(error);
+      }
+  });
+}
