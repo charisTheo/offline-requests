@@ -14,6 +14,13 @@ import '@polymer/paper-toggle-button/paper-toggle-button';
 
 import "./offline.min.js";
 import "./snake.js";
+import {
+    db,
+    addItemToObjectStore,
+    removeItemFromObjectStore,
+    getAllItemsInObjectStore,
+    configureLocalDatabase
+} from './indexDB.js';
 
 const VAPID_PUBLIC_KEY = 'BCvnBFnsPt6MPzwX_LOgKqVFG5ToFJ5Yl0qDfwrT-_lqG0PqgwhFijMq_E-vgkkLli7RWHZCYxANy_l0oxz0Nzs';
 const API_URL = 'https://ecommerce-pwa.herokuapp.com';
@@ -28,7 +35,7 @@ const cartCloseButton = document.getElementById('cart-close-button');
 const checkoutButton = document.getElementById('checkout-button');
 const pageVisibilityPushToggleButton = document.getElementById('page-visibility-push-toggle-button');
 
-var db, pageVisibilityPushIsEnabled = true;
+var pageVisibilityPushIsEnabled = true;
 
 window.addEventListener('load', async () => {
     // TODO register service worker
@@ -127,39 +134,6 @@ const clearShoppingCart = async () => {
     }
 }
 
-const configureLocalDatabase = () => {
-    let DBOpenRequest = window.indexedDB.open("shoppingCart", 1);
-
-    DBOpenRequest.onerror = function(event) {
-        showSnackBar('Error loading database.');
-    };
-
-    DBOpenRequest.onupgradeneeded = function(event) {
-        let db = event.target.result;
-        db.onerror = function(event) {
-            console.warn("DBOpenRequest.onupgradeneeded: db.onerror -> event", event);
-            showSnackBar('Error loading database.');          
-        };
-    
-        let toAddObjectStore = db.createObjectStore("toAdd", { keyPath: "name" });
-        toAddObjectStore.createIndex("name", "name", { unique: false });
-        toAddObjectStore.createIndex("price", "price", { unique: false });
-        toAddObjectStore.createIndex("image", "image", { unique: false });
-        
-        let toRemoveObjectStore = db.createObjectStore("toRemove", { keyPath: "name" });
-        toRemoveObjectStore.createIndex("name", "name", { unique: false });
-        toRemoveObjectStore.createIndex("price", "price", { unique: false });
-        toRemoveObjectStore.createIndex("image", "image", { unique: false });
-    };
-
-    return new Promise((resolve, reject) => {
-        DBOpenRequest.onsuccess = function(event) {
-            db = DBOpenRequest.result;
-            return resolve(db);
-        };
-    }) 
-}
-
 const addToCart = async (event, forceDb) => {
     const item = JSON.parse(event.target.getAttribute('data-item'));
     const { name, price, image } = item;
@@ -171,15 +145,21 @@ const addToCart = async (event, forceDb) => {
         }
 
         addItemToObjectStore('toAdd', item).then(() => {
+            if (!navigator.connection.downlink) {
+                showSnackBar(`You are offline, but ${name} has been saved for later checkout! 🎊🛒`);
+            } else if (forceDb) {
+                showSnackBar(`There was an error while syncing with the database. ${name} has been saved for later checkout! 🎊🛒`);
+            }
             // * Update the number of cart items
             addItemDescriptionToShoppingCart(item);
             updateNumberOfCartItems();
-            showSnackBar(`You are offline, but ${name} has been saved for later checkout! 🎊🛒`);
         }).catch(error => {
             const itemExistsInCart = error.target.error.message === 'Key already exists in the object store.';
             // ! IndexDB does not take duplicates
-            // TODO increment item in shopping cart else show the error in snack bar
-            showSnackBar(`There was an error while adding ${name} to your cart 😕`);
+            // TODO increment item quantity in shopping cart
+            if (itemExistsInCart) {
+                showSnackBar(`${name} is already in your cart!`);
+            }
         });
 
     } else {
@@ -252,20 +232,11 @@ const initialiseNumberOfCartItems = async forceDb => {
         if (!db) {
             await configureLocalDatabase();
         }
-        const transaction = db.transaction(["toAdd"], "readwrite");
-        const objectStore = transaction.objectStore('toAdd');
-        const getAllItemsRequest = objectStore.getAll();
-        const countRequest = objectStore.count();
-        countRequest.onsuccess = () => {
-            // * Update the number of cart items
-            updateNumberOfCartItems(countRequest.result);
-        };
-        getAllItemsRequest.onsuccess = () => {
-            const cartItems = getAllItemsRequest.result;
-            cartItems.map(cartItem => {
-                addItemDescriptionToShoppingCart(cartItem);
-            });
-        };
+        const cartItems = await getAllItemsInObjectStore('toAdd');
+        updateNumberOfCartItems(cartItems.length);
+        cartItems.map(cartItem => {
+            addItemDescriptionToShoppingCart(cartItem);
+        });
 
     } else {
         try {
@@ -457,36 +428,6 @@ const checkout = async event => {
     } else {
         showSnackBar(`There was an error during the checkout of your cart 😕`);
     }
-}
-
-const addItemToObjectStore = (objectStoreName, item) => {
-    const transaction = db.transaction([objectStoreName], "readwrite");
-    const objectStore = transaction.objectStore(objectStoreName);
-    const objectStoreRequest = objectStore.add(item);
-
-    return new Promise((resolve, reject) => {
-        objectStoreRequest.onsuccess = () => {
-            resolve(item);
-        }
-        objectStoreRequest.onerror = error => {
-            reject(error);
-        }
-    });
-}
-
-const removeItemFromObjectStore = (objectStoreName, item) => {
-    const transaction = db.transaction([objectStoreName], "readwrite");
-    const objectStore = transaction.objectStore(objectStoreName);
-    const objectStoreRequest = objectStore.delete(item.name);
-
-    return new Promise((resolve, reject) => {
-        objectStoreRequest.onsuccess = () => {
-            resolve(item);
-        }
-        objectStoreRequest.onerror = error => {
-            reject(error);
-        }
-    });
 }
 
 const urlBase64ToUint8Array = base64String => {
