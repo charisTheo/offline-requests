@@ -169,22 +169,18 @@ const addToCart = async (event, forceDb) => {
         if (!db) {
             await configureLocalDatabase();
         }
-        const transaction = db.transaction(["toAdd"], "readwrite");
-        const objectStore = transaction.objectStore('toAdd');
-        const objectStoreRequest = objectStore.add(item);
-        
-        objectStoreRequest.onsuccess = function() {
+
+        addItemToObjectStore('toAdd', item).then(() => {
             // * Update the number of cart items
-            updateNumberOfCartItems();
             addItemDescriptionToShoppingCart(item);
+            updateNumberOfCartItems();
             showSnackBar(`You are offline, but ${name} has been saved for later checkout! 🎊🛒`);
-        }
-        objectStoreRequest.onerror = function(error) {
+        }).catch(error => {
             const itemExistsInCart = error.target.error.message === 'Key already exists in the object store.';
             // ! IndexDB does not take duplicates
             // TODO increment item in shopping cart else show the error in snack bar
             showSnackBar(`There was an error while adding ${name} to your cart 😕`);
-        }
+        });
 
     } else {
         try {
@@ -204,7 +200,7 @@ const addToCart = async (event, forceDb) => {
             }
         } catch (error) {
             console.warn("addToCart -> error", error);
-            showSnackBar(`There was an error while adding ${name} to your cart 😕`);
+            // showSnackBar(`There was an error while adding ${name} to your cart 😕`);
             addToCart(event, true); // ! forceDb - force adding it to the offline database
         }
     }
@@ -217,24 +213,36 @@ window.deleteItemFromCart = async (item, forceDb) => {
         if (!db) {
             await configureLocalDatabase();
         }
-        const transaction = db.transaction(["toRemove"], "readwrite");
-        const objectStore = transaction.objectStore('toRemove');
-        const objectStoreRequest = objectStore.add(item);
-        objectStoreRequest.onsuccess = () => {
-            removeItemDescriptionFromShoppingCart(name);
-            updateNumberOfCartItems();
-            showSnackBar(`${name} has been removed from your cart! 🗑🛒`);
-        }
-    } else {
-        const response = await fetch(`${API_URL}/cart/${name}`, { method: 'DELETE' });
-        const totalCartItems = await response.json();
+        addItemToObjectStore('toRemove', item).catch(error => {
+            console.log("TCL: window.deleteItemFromCart -> error", error)
+        });
+
+        removeItemDescriptionFromShoppingCart(item.name);
+        updateNumberOfCartItems();
+        showSnackBar(`${item.name} has been removed from your cart! 🗑🛒`);
+        // also remove item from the toAdd collection in IndexDB
+        removeItemFromObjectStore('toAdd', item);
         
-        if (response.status === 200) {
+    } else {
+        try {
+
+            const response = await fetch(`${API_URL}/cart/${name}`, { method: 'DELETE' });
+            const totalCartItems = await response.json();
+            
+            if (response.status !== 200) {
+                throw new Error(`Request [DELETE] to [/cart/${name}] returned status [${response.status}]`);
+            }
+
             removeItemDescriptionFromShoppingCart(name);
             updateNumberOfCartItems(totalCartItems);
             showSnackBar(`${name} has been removed from your cart! 🗑🛒`);
-        } else {
-            showSnackBar(`There was an error while removing ${name} from your cart 😕`);
+            
+
+        } catch (error) {
+            console.warn("deleteItemFromCart -> error", error);
+            // showSnackBar(`There was an error while removing ${name} from your cart 😕`);
+            window.deleteItemFromCart(item, true);
+
         }
     }
 }
@@ -276,7 +284,7 @@ const initialiseNumberOfCartItems = async forceDb => {
     }
 }
 
-const updateNumberOfCartItems = (numberOfCartItems) => {
+const updateNumberOfCartItems = numberOfCartItems => {
     // if no number of items passed to the function
     // measure the number of elements of id starting with 'shopping-cart-item-'
     numberOfCartItems = numberOfCartItems !== undefined ? 
@@ -449,6 +457,36 @@ const checkout = async event => {
     } else {
         showSnackBar(`There was an error during the checkout of your cart 😕`);
     }
+}
+
+const addItemToObjectStore = (objectStoreName, item) => {
+    const transaction = db.transaction([objectStoreName], "readwrite");
+    const objectStore = transaction.objectStore(objectStoreName);
+    const objectStoreRequest = objectStore.add(item);
+
+    return new Promise((resolve, reject) => {
+        objectStoreRequest.onsuccess = () => {
+            resolve(item);
+        }
+        objectStoreRequest.onerror = error => {
+            reject(error);
+        }
+    });
+}
+
+const removeItemFromObjectStore = (objectStoreName, item) => {
+    const transaction = db.transaction([objectStoreName], "readwrite");
+    const objectStore = transaction.objectStore(objectStoreName);
+    const objectStoreRequest = objectStore.delete(item.name);
+
+    return new Promise((resolve, reject) => {
+        objectStoreRequest.onsuccess = () => {
+            resolve(item);
+        }
+        objectStoreRequest.onerror = error => {
+            reject(error);
+        }
+    });
 }
 
 const urlBase64ToUint8Array = base64String => {
