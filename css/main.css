@@ -1,14 +1,7 @@
 /* Material Color tool: https://material-ui.com/customization/color/#color-tool */
 :root {
-    --orange80: rgba(255, 99, 51, 0.8);
-    --orange: #ff6333;
-    --dark-orange: #ff3d00;
-    --purple: #673ab7;
-    --dark-purple: #4a1a9e;
-
     /* Polymer theme styles */
-    /* #3f51b5 */
-    --primary-color: var(--google-blue-700);
+    --primary-color: var(--google-green-500);
 }
 body, html {
     min-height: 100vh;
@@ -43,7 +36,11 @@ paper-toolbar > .title {
     height: var(--paper-toolbar-height, 64px);
     width: var(--paper-toolbar-height, 64px);
 }
-#fork-me-banner:hover .octo-arm {
+#fork-me-banner > svg > path:not(:first-child) {
+    fill: var(--primary-color);
+}
+#fork-me-banner:hover .octo-arm,
+#fork-me-banner:focus .octo-arm {
     -webkit-animation: octocat-wave 560ms ease-in-out;
     animation: octocat-wave 560ms ease-in-out;
 }
@@ -94,6 +91,12 @@ main paper-card {
     align-items: center;
     flex-direction: column;
     justify-content: space-between;
+    transition: box-shadow 0.35s;
+    /* --paper-card-header-color: var(--accent-color); */
+}
+main paper-card:hover,
+main paper-card:focus {
+    box-shadow: var(--paper-material-elevation-5_-_box-shadow);
 }
 main paper-card .card-actions {
     border-top: none;
@@ -101,13 +104,10 @@ main paper-card .card-actions {
 main paper-card .header {
     border-bottom: 1px solid #e8e8e8;
 }
-main paper-card .header .title-text {
-    color: var(--primary-color);
-}
 
 paper-button {
     background-color: var(--primary-color);
-    color: white;
+    color: #ffffff;
 }
 
 footer {
@@ -120,7 +120,7 @@ footer {
 }
 
 footer a {
-    color: var(--orange);
+    color: var(--accent-color);
 }
 
 paper-toolbar paper-button {
@@ -185,6 +185,7 @@ paper-toolbar paper-button {
     position: relative;
 }
 #number-of-cart-items {
+    color: var(--accent-color);
     position: absolute;
     bottom: 0;
     right: 0;
@@ -193,7 +194,6 @@ paper-toolbar paper-button {
     text-align: center;
     font-size: 12px;
     background-color: #ffffff;
-    color: var(--dark-orange);
     border-radius: 8px;
     box-shadow: 0px 2px 10px rgba(0,0,0,0.35);
 }

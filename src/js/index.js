@@ -134,12 +134,6 @@ const configureLocalDatabase = () => {
         showSnackBar('Error loading database.');
     };
 
-    DBOpenRequest.onsuccess = function(event) {
-        // showSnackBar('Database initialised.');
-
-        db = DBOpenRequest.result;
-    };
-
     DBOpenRequest.onupgradeneeded = function(event) {
         let db = event.target.result;
         db.onerror = function(event) {
@@ -157,14 +151,24 @@ const configureLocalDatabase = () => {
         toRemoveObjectStore.createIndex("price", "price", { unique: false });
         toRemoveObjectStore.createIndex("image", "image", { unique: false });
     };
+
+    return new Promise((resolve, reject) => {
+        DBOpenRequest.onsuccess = function(event) {
+            db = DBOpenRequest.result;
+            return resolve(db);
+        };
+    }) 
 }
 
-const addToCart = async event => {
+const addToCart = async (event, forceDb) => {
     const item = JSON.parse(event.target.getAttribute('data-item'));
     const { name, price, image } = item;
 
-    // * add to IndexDB when offline 
-    if (!navigator.connection.downlink && db) {
+    // * add to IndexDB when offline or forced 
+    if (!navigator.connection.downlink || forceDb) {
+        if (!db) {
+            await configureLocalDatabase();
+        }
         const transaction = db.transaction(["toAdd"], "readwrite");
         const objectStore = transaction.objectStore('toAdd');
         const objectStoreRequest = objectStore.add(item);
@@ -183,28 +187,36 @@ const addToCart = async event => {
         }
 
     } else {
-        const response = await fetch(`${API_URL}/cart`, { 
-            method: 'POST', 
-            body: JSON.stringify({item}),
-            headers: {'Content-Type': 'application/json'}
-        });
-        const totalCartItems = await response.json();
-        
-        if (response.status === 200) {
-            addItemDescriptionToShoppingCart(item);        
-            updateNumberOfCartItems(totalCartItems);
-            showSnackBar(`${name} has been added to your cart! 🎊🛒`);
-        } else {
+        try {
+            const response = await fetch(`${API_URL}/cart`, { 
+                method: 'POST', 
+                body: JSON.stringify({item}),
+                headers: {'Content-Type': 'application/json'}
+            });
+            const totalCartItems = await response.json();
+            
+            if (response.status === 200) {
+                addItemDescriptionToShoppingCart(item);        
+                updateNumberOfCartItems(totalCartItems);
+                showSnackBar(`${name} has been added to your cart! 🎊🛒`);
+            } else {
+                throw new Error(`Request [POST] to [/cart] returned status [${response.status}]`);
+            }
+        } catch (error) {
+            console.warn("addToCart -> error", error);
             showSnackBar(`There was an error while adding ${name} to your cart 😕`);
+            addToCart(event, true); // ! forceDb - force adding it to the offline database
         }
-
     }
 }
 
-window.deleteItemFromCart = async item => {
+window.deleteItemFromCart = async (item, forceDb) => {
     const { name, image, price } = item;
 
-    if (!navigator.connection.downlink && db) {
+    if (!navigator.connection.downlink || forceDb) {
+        if (!db) {
+            await configureLocalDatabase();
+        }
         const transaction = db.transaction(["toRemove"], "readwrite");
         const objectStore = transaction.objectStore('toRemove');
         const objectStoreRequest = objectStore.add(item);
@@ -227,9 +239,11 @@ window.deleteItemFromCart = async item => {
     }
 }
 
-const initialiseNumberOfCartItems = async () => {
-    if (!navigator.connection.downlink && db) {
-        // if only offline
+const initialiseNumberOfCartItems = async forceDb => {
+    if (!navigator.connection.downlink || forceDb) {
+        if (!db) {
+            await configureLocalDatabase();
+        }
         const transaction = db.transaction(["toAdd"], "readwrite");
         const objectStore = transaction.objectStore('toAdd');
         const getAllItemsRequest = objectStore.getAll();
@@ -246,13 +260,19 @@ const initialiseNumberOfCartItems = async () => {
         };
 
     } else {
-        const response = await fetch(`${API_URL}/cart`, { method: 'GET'})
-        const cartItems = await response.json();
-        updateNumberOfCartItems(cartItems.length);
-        cartItems.map(cartItem => {
-            addItemDescriptionToShoppingCart(cartItem);
-        });
+        try {
+            const response = await fetch(`${API_URL}/cart`, { method: 'GET'})
+            const cartItems = await response.json();
+            updateNumberOfCartItems(cartItems.length);
+            cartItems.map(cartItem => {
+                addItemDescriptionToShoppingCart(cartItem);
+            });
 
+        } catch (error) {
+            console.warn(`initialiseNumberOfCartItems -> Reuqest [GET] to /cart failed - error [${error}] - Initialising IndexDB...`);
+            initialiseNumberOfCartItems(true); // ! forceDb
+
+        }
     }
 }
 
