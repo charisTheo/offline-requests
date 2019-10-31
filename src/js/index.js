@@ -73,7 +73,7 @@ const attachClickEventListeners = () => {
 
 const registerServiceWorker = async () => {
     if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.register('./service-worker.js', { scope: '/offline-requests' });
+        const registration = await navigator.serviceWorker.register('./service-worker.js', { scope: '/offline-requests/' });
         return registration;
     } else {
         return null;
@@ -98,7 +98,7 @@ const checkout = async event => {
 window.addEventListener('offline', async () => {
     // showSnackBar('You are offline 📴');
     configureLocalDatabase();
-    const registration = await navigator.serviceWorker.getRegistration('/offline-requests');
+    const registration = await navigator.serviceWorker.getRegistration('/offline-requests/');
     // * register Background Sync event
     registration.sync.register('sync-cart-items');
 });
