@@ -9,14 +9,14 @@ const notificationsRequestButton = document.getElementById('notifications-reques
 
 // * Possible values: 'prompt', 'denied', or 'granted'
 const getNotificationPermission = async () => {
-    const [ registration ] = await navigator.serviceWorker.getRegistrations();
+    const registration = await navigator.serviceWorker.getRegistration('/offline-requests');
     const permission = await registration.pushManager.permissionState({userVisibleOnly: true});
     return permission;
 }
 
 // ! ask for permission only when the user clicks
 const requestNotificationPermission = () => {
-    navigator.serviceWorker.getRegistrations().then(([ registration ]) => {
+    navigator.serviceWorker.getRegistration('/offline-requests').then(registration => {
         registration.pushManager.permissionState({userVisibleOnly: true}).then(permission => {
             // Possible values are 'prompt', 'denied', or 'granted'
             if (permission === "prompt" || permission === "granted") {
@@ -33,10 +33,10 @@ const requestNotificationPermission = () => {
 }
 
 const requestNotification = notificationType => {
-    navigator.serviceWorker.getRegistrations().then(async ([ registration ]) => {
+    navigator.serviceWorker.getRegistration('/offline-requests').then(async registration => {
         if (!registration) {
             showSnackBar("Push subscription has been deleted or expired.");
-            registration = await navigator.serviceWorker.register('./service-worker.js');
+            registration = await navigator.serviceWorker.register('./service-worker.js', { scope: 'offline-requests'});
             await subscribeToPushManager(registration);
         }
         const permission = await registration.pushManager.permissionState({userVisibleOnly: true});
