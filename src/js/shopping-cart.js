@@ -16,13 +16,13 @@ const addToCart = async (event, forceDb) => {
     const { name, price, image } = item;
 
     // * add to IndexDB when offline or forced 
-    if (!navigator.connection.downlink || forceDb) {
+    if (!navigator.onLine || forceDb) {
         if (!db) {
             await configureLocalDatabase();
         }
 
         addItemToObjectStore('toAdd', item).then(() => {
-            if (!navigator.connection.downlink) {
+            if (!navigator.onLine) {
                 showSnackBar(`You are offline, but ${name} has been saved for later checkout! 🎊🛒`);
             } else if (forceDb) {
                 showSnackBar(`There was an error while syncing with the database. ${name} has been saved for later checkout! 🎊🛒`);
@@ -66,7 +66,7 @@ const addToCart = async (event, forceDb) => {
 const deleteItemFromCart = async (item, forceDb) => {
     const { name, image, price } = item;
 
-    if (!navigator.connection.downlink || forceDb) {
+    if (!navigator.onLine || forceDb) {
         if (!db) {
             await configureLocalDatabase();
         }
@@ -149,7 +149,7 @@ const clearShoppingCart = async () => {
 }
 
 const initialiseNumberOfCartItems = async forceDb => {
-    if (!navigator.connection.downlink || forceDb) {
+    if (!navigator.onLine || forceDb) {
         if (!db) {
             await configureLocalDatabase();
         }

@@ -2,6 +2,8 @@ if (!global._babelPolyfill) {
 	require('babel-polyfill');
 }
 
+import { Workbox } from 'workbox-window';
+
 import './../css/main.css';
 import './../css/offline-theme-dark.css';
 
@@ -44,6 +46,7 @@ import {
 const API_URL = 'https://ecommerce-pwa.herokuapp.com';
 const NOTIFICATIONS_ACTIVE_URL = './img/notifications-active.svg';
 const NOTIFICATIONS_NONE_URL = './img/notifications-none.svg';
+const SERVICE_WORKER_SCOPE = window.location.href.match('localhost') ? '/' : '/offline-requests/';
 const notificationsRequestButton = document.getElementById('notifications-request-button');
 const shoppingCartButton = document.getElementById('shopping-cart-button');
 const cartCloseButton = document.getElementById('cart-close-button');
@@ -51,8 +54,8 @@ const checkoutButton = document.getElementById('checkout-button');
 const addToCartButtons = document.querySelectorAll('.add-to-cart-button');
 
 window.addEventListener('load', async () => {
-    // TODO register service worker
-    const registration = await registerServiceWorker();
+    // * register service worker
+    registerServiceWorker();
 
     attachClickEventListeners();
     initialiseNumberOfCartItems();
@@ -71,12 +74,28 @@ const attachClickEventListeners = () => {
     notificationsRequestButton.addEventListener('click', requestNotificationPermission);
 }
 
+var workBox;
 const registerServiceWorker = async () => {
     if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.register('./service-worker.js', { scope: '/offline-requests/' });
-        return registration;
-    } else {
-        return null;
+        workBox = new Workbox('./service-worker.js', { scope: SERVICE_WORKER_SCOPE });
+
+        workBox.addEventListener('controlling', () => {
+            window.location.reload();
+        });
+
+        workBox.addEventListener('waiting' , () => {
+            var updateServiceWorker = event => {
+                workBox.messageSW({ type: 'NEW_VERSION'});
+            };
+            window.updateServiceWorker = updateServiceWorker;
+        
+            setTimeout(() => 
+                showSnackBar('A new version is available <span style="font-size:17px;margin-left:5px">👉</span><a href="#" onclick="updateServiceWorker();" class="snackbar-refresh-button">&#x21BB;</a>')
+                , 1500
+            );
+        });
+
+        workBox.register();
     }
 }
 
@@ -98,7 +117,7 @@ const checkout = async event => {
 window.addEventListener('offline', async () => {
     // showSnackBar('You are offline 📴');
     configureLocalDatabase();
-    const registration = await navigator.serviceWorker.getRegistration('/offline-requests/');
+    const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_SCOPE);
     // * register Background Sync event
     registration.sync.register('sync-cart-items');
 });

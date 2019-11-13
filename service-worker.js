@@ -10,6 +10,21 @@ if (workbox) {
 
 workbox.precaching.precacheAndRoute(self.__precacheManifest || []);
 
+addEventListener('activate', event => {
+  event.waitUntil(clients.claim());
+});
+
+addEventListener('message', event => {
+  if (event.data && event.data.type === 'NEW_VERSION') {
+    skipWaiting();
+  }
+});
+
+workbox.routing.registerRoute(
+  /(service-worker\.js)$/,
+  new workbox.strategies.NetworkOnly()
+);
+
 // workbox.routing.registerRoute(
 //   /\.(?:html|js|css|webp|png|jpg|svg|ico)$/,
 //   new workbox.strategies.StaleWhileRevalidate()
