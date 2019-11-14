@@ -20,33 +20,22 @@ import "./offline.min";
 import { showSnackBar } from "./snackBar";
 import {
     getNotificationPermission,
-    requestNotificationPermission,
-    requestNotification,
-    subscribeToPushManager
+    requestNotificationPermission
 } from "./notifications";
 import {
-    db,
-    addItemToObjectStore,
-    removeItemFromObjectStore,
-    getAllItemsInObjectStore,
     configureLocalDatabase
 } from './indexDB';
 import {
     addToCart,
-    deleteItemFromCart,
-    addItemDescriptionToShoppingCart,
-    removeItemDescriptionFromShoppingCart,
     removeAllItemsDescriptionsFromShoppingCart,
-    clearShoppingCart,
     initialiseNumberOfCartItems,
-    updateNumberOfCartItems,
     toggleShoppingCart
 } from './shopping-cart';
 
 const API_URL = 'https://ecommerce-pwa.herokuapp.com';
 const NOTIFICATIONS_ACTIVE_URL = './img/notifications-active.svg';
 const NOTIFICATIONS_NONE_URL = './img/notifications-none.svg';
-const SERVICE_WORKER_SCOPE = window.location.href.match('localhost') ? '/' : '/offline-requests/';
+const SERVICE_WORKER_SCOPE = process.env.NODE_ENV === 'development' ? '/' : '/cart-abandon-notification/';
 const notificationsRequestButton = document.getElementById('notifications-request-button');
 const shoppingCartButton = document.getElementById('shopping-cart-button');
 const cartCloseButton = document.getElementById('cart-close-button');
@@ -91,7 +80,7 @@ const registerServiceWorker = async () => {
         
             setTimeout(() => 
                 showSnackBar('A new version is available <span style="font-size:17px;margin-left:5px">👉</span><a href="#" onclick="updateServiceWorker();" class="snackbar-refresh-button">&#x21BB;</a>')
-                , 1500
+                , 0
             );
         });
 

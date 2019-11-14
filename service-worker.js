@@ -1,4 +1,5 @@
 // https://developers.google.com/web/tools/workbox/guides/configure-workbox
+const placeholderURL = '/img/placeholder-image.png'; // precaching this in __precacheManifest file
 const API_URL = 'https://ecommerce-pwa.herokuapp.com';
 var db;
 
@@ -21,17 +22,41 @@ addEventListener('message', event => {
 });
 
 workbox.routing.registerRoute(
+  /(https:\/\/fonts.googleapis.com)/,
+  new workbox.strategies.StaleWhileRevalidate()
+);
+
+workbox.routing.registerRoute(
+  /(https:\/\/fonts.gstatic.com)/,
+  new workbox.strategies.StaleWhileRevalidate()
+);
+
+workbox.routing.registerRoute(
   /(service-worker\.js)$/,
   new workbox.strategies.NetworkOnly()
 );
 
-// workbox.routing.registerRoute(
-//   /\.(?:html|js|css|webp|png|jpg|svg|ico)$/,
-//   new workbox.strategies.StaleWhileRevalidate()
-// );
 workbox.routing.registerRoute(
-  /\.(?:webp|png|jpg|svg)$/,
+  /\.(?:js|css)$/,
   new workbox.strategies.StaleWhileRevalidate()
+);
+
+workbox.routing.registerRoute(
+  /\.(?:webp|png|jpg|jpeg|svg)$/,
+  async ({url, event, params}) => {
+    const staleWhileRevalidate = new workbox.strategies.StaleWhileRevalidate();
+    const response = await fetch(url, { method: 'GET' }) || await caches.match(event.request);
+    
+    if (response && response.status === 404 && url.href.match('\/products\/')) {
+      console.warn(`\nServiceWorker: Image [${url.href}] was not found either in network or in cache! Responding with placeholder image instead...`);
+      // * respond with placeholder image
+      return await fetch(placeholderURL, { method: 'GET' });
+
+    } else {
+      return await staleWhileRevalidate.handle({event});
+      
+    }
+  }
 );
 
 workbox.routing.registerRoute(
